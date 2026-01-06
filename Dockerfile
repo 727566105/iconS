@@ -13,6 +13,13 @@ RUN npm ci --cache /tmp/npm-cache
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY prisma ./prisma/
+COPY package*.json ./
+
+# Generate Prisma Client before copying source code
+RUN npx prisma generate
+
+# Copy the rest of the application
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED 1
@@ -38,6 +45,11 @@ RUN chown nextjs:nodejs .next
 # Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy Prisma files and schema
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
 USER nextjs
 
