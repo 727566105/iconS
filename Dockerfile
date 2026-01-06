@@ -54,14 +54,26 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 复制 Prisma 文件
+# 复制 Prisma 文件（需要包含 prisma migrate 工具）
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # 创建数据目录
 RUN mkdir -p /app/data/icons /app/data/temp && \
     chown -R nextjs:nodejs /app/data
+
+# 创建启动脚本，包含数据库迁移
+RUN echo '#!/bin/sh\n\
+set -e\n\
+echo "启动应用..."\n\
+echo "运行数据库迁移..."\n\
+npx prisma migrate deploy || echo "警告: 数据库迁移失败或已存在"\n\
+echo "启动服务器..."\n\
+exec node server.js\n' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh && \
+    chown nextjs:nodejs /app/entrypoint.sh
 
 USER nextjs
 
@@ -75,4 +87,4 @@ ENV STORAGE_BASE_PATH=/app/data
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-CMD ["node", "server.js"]
+CMD ["/app/entrypoint.sh"]
