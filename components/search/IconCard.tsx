@@ -61,7 +61,9 @@ export function IconCard({ icon }: IconCardProps) {
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(`/api/icons/${icon.id}/download`)
+      const response = await fetch(`/api/icons/${icon.id}/download`, {
+        method: 'POST'
+      })
       if (!response.ok) throw new Error('Failed to download')
 
       const blob = await response.blob()

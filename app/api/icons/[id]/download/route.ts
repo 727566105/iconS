@@ -20,7 +20,7 @@ export async function POST(
     }
 
     // 读取 SVG 文件
-    const svgContent = await storageService.readIcon(icon.id, icon.fileName)
+    const svgContent = await storageService.readIcon(icon.id, icon.fileName, icon.shardId)
 
     // 增加下载次数
     await prisma.icon.update({

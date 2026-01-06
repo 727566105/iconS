@@ -83,9 +83,14 @@ export class StorageService {
 
   /**
    * Read icon file
+   * @param iconId Icon ID
+   * @param fileName File name
+   * @param shardId Optional shard ID (uses calculated shard if not provided)
    */
-  async readIcon(iconId: string, fileName?: string): Promise<string> {
-    const filePath = this.getIconPath(iconId, fileName)
+  async readIcon(iconId: string, fileName?: string, shardId?: number): Promise<string> {
+    const filePath = shardId !== undefined
+      ? this.getIconPathWithShard(shardId, fileName || `${iconId}.svg`)
+      : this.getIconPath(iconId, fileName)
     return await fs.readFile(filePath, 'utf-8')
   }
 

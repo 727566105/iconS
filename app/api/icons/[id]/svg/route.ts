@@ -20,7 +20,7 @@ export async function GET(
     }
 
     // 读取 SVG 文件
-    const svgContent = await storageService.readIcon(icon.id, icon.fileName)
+    const svgContent = await storageService.readIcon(icon.id, icon.fileName, icon.shardId)
 
     // 返回 SVG 内容
     return new NextResponse(svgContent, {
