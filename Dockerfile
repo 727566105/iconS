@@ -2,7 +2,8 @@ FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat openssl1.1-compat
+# 安装 libretls 以提供 OpenSSL 兼容性
+RUN apk add --no-cache libc6-compat libretls
 WORKDIR /app
 
 # Install dependencies
@@ -35,7 +36,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache openssl1.1-compat
+# 安装运行时依赖
+RUN apk add --no-cache libc6-compat libretls
 
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
