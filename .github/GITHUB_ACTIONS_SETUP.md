@@ -1,6 +1,6 @@
-# GitHub Actions 配置指南
+# GitHub Actions CI/CD 配置指南
 
-本项目使用 GitHub Actions 自动构建和发布 Docker 镜像。
+本项目使用 GitHub Actions 自动构建并发布 Docker 镜像到 **GitHub Container Registry (GHCR)**。
 
 ## 📋 工作流说明
 
@@ -15,8 +15,15 @@
 **功能:**
 - 构建 Docker 镜像
 - 支持多架构 (AMD64 和 ARM64)
-- 推送到 Docker Hub 或 GitHub Container Registry
+- 自动推送到 GitHub Container Registry (GHCR)
 - 自动生成镜像标签
+
+**镜像地址:**
+```
+ghcr.io/727566105/icons:latest
+ghcr.io/727566105/icons:v1.0.0
+ghcr.io/727566105/icons:master
+```
 
 ### 2. 版本发布 (`release.yml`)
 
@@ -27,48 +34,20 @@
 **功能:**
 - 自动生成变更日志
 - 创建 GitHub Release
-- 附加文档文件
 
 ---
 
 ## ⚙️ 必需配置
 
-### 步骤 1: 配置 Docker Hub (推荐)
+### 启用 GitHub Actions 权限
 
-#### 1.1 创建 Docker Hub 账号
-访问 https://hub.docker.com/ 并注册账号
-
-#### 1.2 创建访问令牌
-1. 登录 Docker Hub
-2. 点击右上角头像 → Account Settings → Security
-3. 点击 "New Access Token"
-4. 输入描述(如 `github-actions`)
-5. 权限选择 "Read & Write"
-6. 复制生成的令牌
-
-#### 1.3 在 GitHub 配置 Secrets
 1. 进入 GitHub 仓库
-2. Settings → Secrets and variables → Actions
-3. 点击 "New repository secret"
-4. 添加以下两个密钥:
+2. **Settings** → **Actions** → **General**
+3. 滚动到 **Workflow permissions**
+4. 选择 **Read and write permissions**
+5. 点击 **Save**
 
-   | 名称 | 值 |
-   |------|-----|
-   | `DOCKER_USERNAME` | 你的 Docker Hub 用户名 |
-   | `DOCKER_PASSWORD` | 刚才创建的访问令牌 |
-
-### 步骤 2: 使用 GitHub Container Registry (可选)
-
-如果不使用 Docker Hub,可以使用 GitHub 自带的容器注册表:
-
-1. 在 GitHub 仓库中启用:
-   - Settings → Actions → General → Workflow permissions
-   - 选择 "Read and write permissions"
-
-2. 修改 `.github/workflows/docker-publish.yml`:
-   - 注释掉 Docker Hub 登录步骤
-   - 取消注释 GitHub Container Registry 登录步骤
-   - 修改 `images` 为 `ghcr.io/${{ github.repository }}`
+**重要**: 此步骤必须完成,否则无法推送镜像到 GHCR!
 
 ---
 
@@ -78,9 +57,9 @@
 
 | 触发事件 | 生成的标签 | 示例 |
 |---------|-----------|------|
-| 推送到 master | `master`, `latest` | `username/icon-library:master` |
-| 创建标签 v1.2.3 | `v1.2.3`, `1.2`, `1` | `username/icon-library:v1.2.3` |
-| Pull Request | `pr-123` | `username/icon-library:pr-123` |
+| 推送到 master | `master`, `latest` | `ghcr.io/727566105/icons:master` |
+| 创建标签 v1.2.3 | `v1.2.3`, `1.2`, `1` | `ghcr.io/727566105/icons:v1.2.3` |
+| Pull Request | `pr-123` | `ghcr.io/727566105/icons:pr-123` |
 
 ---
 
@@ -94,7 +73,7 @@
    git commit -m "feat: 添加新功能"
    git push origin master
    ```
-   → 自动构建并推送 `:master` 和 `:latest` 标签
+   → 自动构建并推送 `:master` 和 `:latest` 标签到 GHCR
 
 2. **发布新版本**:
    ```bash
@@ -113,18 +92,26 @@
 
 ---
 
-## 📦 在其他服务器使用镜像
-
-配置完成后,其他服务器可以直接拉取镜像:
+## 📦 在其他服务器使用 GHCR 镜像
 
 ### 1. 拉取镜像
 
+**公开镜像** (无需认证):
 ```bash
 # 拉取最新版本
-docker pull your-dockerhub-username/icon-library:latest
+docker pull ghcr.io/727566105/icons:latest
 
 # 拉取指定版本
-docker pull your-dockerhub-username/icon-library:v1.0.0
+docker pull ghcr.io/727566105/icons:v1.0.0
+```
+
+**私有镜像** (需要认证):
+```bash
+# 登录 GHCR
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+# 或使用 GitHub Personal Access Token
+docker login ghcr.io -u your-github-username -p your-github-token
 ```
 
 ### 2. 创建 .env.docker 文件
@@ -141,20 +128,20 @@ EOF
 ### 3. 启动容器
 
 ```bash
-# 使用远程镜像启动
+# 使用 docker-compose(推荐)
 docker-compose -f docker-compose.prod.yml --env-file .env.docker up -d
 ```
 
-或者修改 `docker-compose.prod.yml`,将本地构建改为使用远程镜像:
+或使用 docker run:
 
-```yaml
-services:
-  app:
-    image: your-dockerhub-username/icon-library:latest  # 使用远程镜像
-    # build:  # 注释掉本地构建
-    #   context: .
-    #   dockerfile: Dockerfile
-    # ... 其他配置不变
+```bash
+docker run -d \
+  --name icon-library \
+  -p 3000:3000 \
+  --env-file .env.docker \
+  -v $(pwd)/data/icons:/app/data/icons \
+  -v $(pwd)/data/temp:/app/data/temp \
+  ghcr.io/727566105/icons:latest
 ```
 
 ---
@@ -163,73 +150,60 @@ services:
 
 ### 查看构建日志
 
-1. GitHub 仓库 → Actions 标签
+1. GitHub 仓库 → **Actions** 标签
 2. 选择具体的工作流运行
 3. 点击查看详细日志
 
-### 查看镜像
+### 查看 GHCR 镜像
 
-**Docker Hub:**
-- 访问: https://hub.docker.com/r/your-username/icon-library
-- 查看所有标签和镜像大小
-
-**GitHub Container Registry:**
-- 访问: https://github.com/your-username/your-repo/pkgs/container/icon-library
+1. 访问: https://github.com/727566105?tab=packages&repo_name=iconS
+2. 查看 `icon-library` 包
+3. 查看所有标签和镜像大小
 
 ---
 
 ## 🛠️ 常见问题
 
-### 1. 构建失败: "unauthorized: authentication required"
+### 1. 构建失败: "denied: permission_denied"
 
-**原因:** Docker Hub 凭据配置错误
+**原因**: GitHub Actions 没有写入权限
 
-**解决:**
-- 检查 GitHub Secrets 中的 `DOCKER_USERNAME` 和 `DOCKER_PASSWORD`
-- 确认访问令牌有 "Read & Write" 权限
+**解决**:
+1. 进入 **Settings** → **Actions** → **General**
+2. 启用 **Read and write permissions**
+3. 重新运行工作流
 
-### 2. 多架构构建失败
+### 2. 拉取镜像失败: "unauthorized: authentication required"
 
-**原因:** QEMU 或 Buildx 配置问题
+**原因**: 镜像设为私有
 
-**解决:** 工作流已包含 `setup-qemu-action`,应该自动支持多架构
+**解决**:
+**方式 1**: 将镜像设为公开
+- 进入仓库的 Packages 设置
+- 将 `icon-library` 包改为 Public
 
-### 3. 镜像推送成功但拉取不到
-
-**原因:** 镜像名称或标签错误
-
-**解决:**
-- 检查 `IMAGE_NAME` 是否正确
-- 确认 `DOCKER_USERNAME` 变量配置正确
-- 在 Docker Hub 验证镜像是否存在
-
-### 4. 如何切换到 GitHub Container Registry
-
-修改 `.github/workflows/docker-publish.yml`:
-
-```yaml
-env:
-  REGISTRY: ghcr.io  # 改为 GHCR
-  IMAGE_NAME: icon-library
-
-# 注释掉 Docker Hub 登录
-# - name: 登录到 Docker Hub
-#   if: github.event_name != 'pull_request'
-#   uses: docker/login-action@v3
-#   with:
-#     registry: ${{ env.REGISTRY }}
-#     username: ${{ secrets.DOCKER_USERNAME }}
-#     password: ${{ secrets.DOCKER_PASSWORD }}
-
-# 取消注释 GHCR 登录
-- name: 登录到 GitHub Container Registry
-  if: github.event_name != 'pull_request'
-  uses: docker/login-action@v3
-  with:
-    registry: ghcr.io
-    username: ${{ github.actor }}
-    password: ${{ secrets.GITHUB_TOKEN }}
+**方式 2**: 使用令牌登录
+```bash
+docker login ghcr.io -u your-github-username -p your-github-token
 ```
+
+### 3. 如何查看镜像大小?
+
+访问 GHCR 页面:
+```
+https://github.com/727566105?tab=packages&repo_name=iconS
+```
+
+或使用命令:
+```bash
+docker images | grep 727566105/icons
+```
+
+### 4. 多架构构建失败
+
+**原因**: QEMU 或 Buildx 配置问题
+
+**解决**: 工作流已包含 `setup-qemu-action`,应该自动支持多架构
 
 ---
 
@@ -241,7 +215,7 @@ env:
 1. **Checkout**: 拉取代码
 2. **QEMU**: 多架构支持
 3. **Buildx**: 设置 Docker 构建工具
-4. **Login**: 登录容器注册表
+4. **Login GHCR**: 登录 GitHub Container Registry
 5. **Metadata**: 生成镜像标签
 6. **Build & Push**: 构建并推送镜像
 
@@ -290,7 +264,7 @@ git push origin master
 git push origin v1.0.0
 
 # 6. GitHub Actions 自动:
-#    - 构建并推送 Docker 镜像
+#    - 构建并推送 Docker 镜像到 GHCR
 #    - 创建 GitHub Release
 ```
 
@@ -298,8 +272,27 @@ git push origin v1.0.0
 
 ## 🔗 相关链接
 
-- [GitHub Actions 文档](https://docs.github.com/en/actions)
-- [Docker Build Push Action](https://github.com/docker/build-push-action)
-- [Docker Metadata Action](https://github.com/docker/metadata-action)
-- [Docker Hub](https://hub.docker.com/)
-- [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+- **GitHub Actions 文档**: https://docs.github.com/en/actions
+- **GitHub Container Registry**: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
+- **Docker Build Push Action**: https://github.com/docker/build-push-action
+- **Docker Metadata Action**: https://github.com/docker/metadata-action
+- **你的 GHCR 镜像**: https://github.com/727566105?tab=packages&repo_name=iconS
+
+---
+
+## 💡 与 Docker Hub 的区别
+
+| 特性 | GHCR | Docker Hub |
+|------|------|-----------|
+| 集成 | 原生集成 GitHub | 需要第三方账号 |
+| 权限 | 使用 GitHub 权限 | 需要单独配置 |
+| 私有仓库 | 免费/无限 | 有限制 |
+| 认证 | 使用 GITHUB_TOKEN | 需要访问令牌 |
+| 构建日志 | 直接在 GitHub 查看 | 需要跳转 |
+| 推荐使用 | ✅ 推荐 | ⚠️ 备选 |
+
+**我们选择 GHCR 的原因:**
+- 无需额外配置 Secrets
+- 与 GitHub 无缝集成
+- 免费无限的私有镜像
+- 更好的安全性

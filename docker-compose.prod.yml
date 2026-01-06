@@ -1,14 +1,16 @@
 # Docker Compose 配置 - 生产环境
-# 此配置仅运行应用容器,使用远程 PostgreSQL 和 Redis
+# 此配置使用从 GHCR 拉取的镜像,使用远程 PostgreSQL 和 Redis
 # 使用方法: docker-compose -f docker-compose.prod.yml up -d
 
 version: '3.8'
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # 使用 GHCR 镜像
+    image: ghcr.io/727566105/icons:latest
+    # 如果需要使用其他版本标签,修改上面的标签即可,例如:
+    # image: ghcr.io/727566105/icons:v1.0.0
+
     container_name: icon-library-app
     ports:
       - "3000:3000"

@@ -15,26 +15,25 @@
   ```
 
 ### 2. 生产部署模式 (`docker-compose.prod.yml`) ⭐ 推荐
-- **适用场景**: 仅运行应用容器,使用远程数据库和 Redis
-- **包含服务**: 仅应用容器
-- **优势**: 更轻量,复用现有数据库服务
+- **适用场景**: 使用 GHCR 镜像,远程数据库和 Redis
+- **镜像来源**: `ghcr.io/727566105/icons:latest`
+- **优势**: 更轻量,复用现有数据库服务,无需本地构建
 - **使用方法**:
   ```bash
-  docker-compose -f docker-compose.prod.yml up -d
+  docker-compose -f docker-compose.prod.yml --env-file .env.docker up -d
   ```
 
 ### 3. 开发部署模式 (`docker-compose.dev.yml`)
-- **适用场景**: 本地开发环境,支持代码热重载
-- **包含服务**: 仅应用容器
-- **特性**: 挂载源代码,修改自动重载
+- **适用场景**: 使用 GHCR 镜像进行开发测试
+- **特性**: 使用远程数据库,快速启动
 - **使用方法**:
   ```bash
-  docker-compose -f docker-compose.dev.yml up
+  docker-compose -f docker-compose.dev.yml --env-file .env.docker up
   ```
 
 ---
 
-## 🚀 快速开始(使用远程数据库)
+## 🚀 快速开始(使用 GHCR 镜像 + 远程数据库)
 
 ### 步骤 1: 配置环境变量
 
@@ -72,9 +71,12 @@ mkdir -p data/temp
 mkdir -p logs
 ```
 
-### 步骤 3: 启动容器
+### 步骤 3: 拉取并启动容器
 
 ```bash
+# 拉取最新镜像
+docker pull ghcr.io/727566105/icons:latest
+
 # 加载环境变量并启动
 docker-compose -f docker-compose.prod.yml --env-file .env.docker up -d
 ```
@@ -110,7 +112,7 @@ exit
 
 ### 启动服务
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml --env-file .env.docker up -d
 ```
 
 ### 停止服务
@@ -132,21 +134,27 @@ docker-compose -f docker-compose.prod.yml logs -f
 docker-compose -f docker-compose.prod.yml logs --tail=100
 ```
 
-### 更新应用
+### 更新镜像
 ```bash
-# 拉取最新代码
-git pull
+# 拉取最新镜像
+docker pull ghcr.io/727566105/icons:latest
 
-# 重新构建镜像
-docker-compose -f docker-compose.prod.yml build --no-cache
-
-# 重启服务
-docker-compose -f docker-compose.prod.yml up -d
+# 重启服务使用新镜像
+docker-compose -f docker-compose.prod.yml --env-file .env.docker up -d
 ```
 
 ### 进入容器
 ```bash
 docker exec -it icon-library-app sh
+```
+
+### 查看镜像信息
+```bash
+# 查看本地镜像
+docker images | grep 727566105/icons
+
+# 查看镜像标签
+docker inspect ghcr.io/727566105/icons:latest
 ```
 
 ---
