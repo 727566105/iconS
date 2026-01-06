@@ -33,6 +33,7 @@ function HomeContent() {
   const [popularIcons, setPopularIcons] = useState<Icon[]>([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const { showToast } = useToast()
 
   // 加载热门图标
@@ -51,6 +52,25 @@ function HomeContent() {
     }
 
     loadPopularIcons()
+  }, [])
+
+  // 检查登录状态
+  useEffect(() => {
+    async function checkLoginStatus() {
+      try {
+        const response = await fetch('/api/admin/me')
+        if (response.ok) {
+          const data = await response.json()
+          setIsLoggedIn(!!data.user)
+        } else {
+          setIsLoggedIn(false)
+        }
+      } catch (error) {
+        setIsLoggedIn(false)
+      }
+    }
+
+    checkLoginStatus()
   }, [])
 
   const handleSearch = async (query: string) => {
@@ -99,12 +119,37 @@ function HomeContent() {
               <h1 className="text-3xl font-bold text-gray-900">SVG 图标库</h1>
               <p className="text-gray-600 mt-1">搜索并复制 SVG 图标代码</p>
             </div>
-            <a
-              href="/admin/login"
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              管理员登录
-            </a>
+            <div className="flex items-center gap-4">
+              {isLoggedIn ? (
+                <>
+                  <a
+                    href="/admin"
+                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  >
+                    管理后台
+                  </a>
+                  <a
+                    href="/admin/login"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      fetch('/api/admin/logout', { method: 'POST' }).then(() => {
+                        window.location.href = '/'
+                      })
+                    }}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    退出登录
+                  </a>
+                </>
+              ) : (
+                <a
+                  href="/admin/login"
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  管理员登录
+                </a>
+              )}
+            </div>
           </div>
 
           {/* 搜索框 */}

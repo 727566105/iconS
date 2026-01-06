@@ -5,7 +5,7 @@
 
 import { prisma } from './db'
 
-export type AIProviderType = 'openai' | 'openai-response' | 'qwen'
+export type AIProviderType = 'openai' | 'openai-response' | 'qwen' | 'deepseek'
 
 export interface AIProviderConfig {
   id: string
@@ -168,6 +168,7 @@ export async function testProviderConnection(id: string): Promise<boolean> {
     switch (provider.provider) {
       case 'openai':
       case 'openai-response':
+      case 'deepseek':
         return await testOpenAIConnection(provider)
       case 'qwen':
         return await testQwenConnection(provider)

@@ -119,6 +119,10 @@ export class AuthService {
    * Used by Route Handlers to set cookies correctly
    */
   getSessionCookieOptions(): { name: string; options: any } {
+    // Calculate explicit expiration date for persistent cookie
+    const expires = new Date()
+    expires.setTime(expires.getTime() + SESSION_DURATION * 1000)
+
     return {
       name: 'sessionId',
       options: {
@@ -126,6 +130,7 @@ export class AuthService {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax' as const,
         maxAge: SESSION_DURATION,
+        expires, // 添加明确的过期日期，确保关闭浏览器后 cookie 仍然有效
         path: '/',
       },
     }

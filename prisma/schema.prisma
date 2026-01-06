@@ -113,10 +113,10 @@ model AIProvider {
   id          String   @id @default(cuid())
   name        String   @unique @db.VarChar(100)
   provider    String   @db.VarChar(50)
-  apiKey      String   @db.Text
-  apiEndpoint String?  @db.Text
-  modelId     String   @db.VarChar(100)
-  modelName   String   @db.VarChar(100)
+  apiKey      String   @map("api_key") @db.Text
+  apiEndpoint String?  @map("api_endpoint") @db.Text
+  modelId     String   @map("model_id") @db.VarChar(100)
+  modelName   String   @map("model_name") @db.VarChar(100)
   enabled     Boolean  @default(true)
   config      Json?
   createdAt   DateTime @default(now()) @map("created_at")

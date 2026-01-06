@@ -48,7 +48,14 @@
       "Bash(npm run prisma:migrate:*)",
       "Bash(npm run prisma:generate:*)",
       "Bash(npx prisma migrate:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(bash:*)",
+      "Bash(/tmp/test_ai_config.sh:*)",
+      "Bash(/tmp/final_test.sh:*)",
+      "Bash(/tmp/test_deepseek.sh:*)",
+      "Bash(redis-cli:*)",
+      "Bash(npx prisma db execute:*)"
     ]
   }
 }

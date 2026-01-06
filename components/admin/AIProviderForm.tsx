@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type ProviderType = 'openai' | 'openai-response' | 'qwen'
+type ProviderType = 'openai' | 'openai-response' | 'qwen' | 'deepseek'
 
 export function AIProviderForm() {
   const router = useRouter()
@@ -47,6 +47,11 @@ export function AIProviderForm() {
         modelName: 'Qwen Turbo',
         apiEndpoint:
           'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+      }),
+      ...(provider === 'deepseek' && {
+        modelId: 'deepseek-chat',
+        modelName: 'DeepSeek Chat',
+        apiEndpoint: 'https://api.deepseek.com/v1',
       }),
     }))
     setTestResult(null)
@@ -198,6 +203,7 @@ export function AIProviderForm() {
           <option value="openai">OpenAI</option>
           <option value="openai-response">OpenAI-Response (兼容)</option>
           <option value="qwen">AliCloud Qwen</option>
+          <option value="deepseek">DeepSeek</option>
         </select>
       </div>
 
@@ -245,6 +251,8 @@ export function AIProviderForm() {
                 return 'https://api.openai.com/v1'
               case 'qwen':
                 return 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation'
+              case 'deepseek':
+                return 'https://api.deepseek.com/v1'
               default:
                 return '自定义 API 地址'
             }

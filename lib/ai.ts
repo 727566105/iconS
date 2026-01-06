@@ -216,6 +216,7 @@ async function callAIAPI(svgText: string): Promise<AIAnalysisResult> {
   switch (provider.provider) {
     case 'openai':
     case 'openai-response':
+    case 'deepseek':
       return await callOpenAIAPI(provider, svgText)
     case 'qwen':
       return await callQwenAPI(provider, svgText)

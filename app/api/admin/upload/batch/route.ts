@@ -35,8 +35,7 @@ interface BatchUploadResponse {
 
 async function processFile(
   file: File,
-  index: number,
-  aiConfigured: boolean
+  index: number
 ): Promise<UploadResult> {
   try {
     // Check file size
@@ -117,6 +116,9 @@ async function processFile(
     // Save file
     await writeFile(fullPath, buffer)
 
+    // Check AI configuration before creating record
+    const aiConfigured = await isAIConfigured()
+
     // Create database record
     const icon = await prisma.icon.create({
       data: {
@@ -126,7 +128,7 @@ async function processFile(
         categoryId: null,
         contentHash,
         shardId,
-        status: 'PENDING',
+        status: aiConfigured ? 'PENDING' : 'PUBLISHED', // 无 AI 时直接发布
         viewCount: 0,
         downloadCount: 0,
       },
@@ -209,13 +211,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if AI is configured
-    const aiConfigured = await isAIConfigured()
-
     // Process files with concurrency control
     const results = await processBatchWithConcurrency(
       files,
-      (file, index) => processFile(file, index, aiConfigured),
+      (file, index) => processFile(file, index),
       CONCURRENT_UPLOADS
     )
 

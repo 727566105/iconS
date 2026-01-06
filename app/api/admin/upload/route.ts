@@ -114,6 +114,9 @@ export async function POST(request: NextRequest) {
     // Save file
     await writeFile(fullPath, buffer)
 
+    // Check AI configuration before creating record
+    const aiConfigured = await isAIConfigured()
+
     // Create database record
     const icon = await prisma.icon.create({
       data: {
@@ -123,14 +126,13 @@ export async function POST(request: NextRequest) {
         categoryId: categoryId || null,
         contentHash,
         shardId,
-        status: 'PENDING', // Will be processed by AI
+        status: aiConfigured ? 'PENDING' : 'PUBLISHED', // 无 AI 时直接发布
         viewCount: 0,
         downloadCount: 0,
       },
     })
 
     // Queue for AI analysis (async, don't wait)
-    const aiConfigured = await isAIConfigured()
     if (aiConfigured) {
       queueIconForAIAnalysis(icon.id, svgContent).catch((error) => {
         console.error(`Failed to queue icon ${icon.id} for AI analysis:`, error)

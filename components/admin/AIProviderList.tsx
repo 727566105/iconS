@@ -98,6 +98,8 @@ export function AIProviderList({ providers }: AIProviderListProps) {
         return 'OpenAI-Response'
       case 'qwen':
         return 'AliCloud Qwen'
+      case 'deepseek':
+        return 'DeepSeek'
       default:
         return provider
     }

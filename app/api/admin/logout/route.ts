@@ -13,13 +13,16 @@ export async function POST() {
       await authService.destroySession(sessionId)
     }
 
-    // Delete cookie
-    cookieStore.delete('sessionId')
-
-    return NextResponse.json({
+    // Create response object
+    const response = NextResponse.json({
       success: true,
       message: 'Logged out successfully',
     })
+
+    // Delete cookie using NextResponse.cookies.delete()
+    response.cookies.delete('sessionId')
+
+    return response
   } catch (error) {
     console.error('Logout error:', error)
     return NextResponse.json(
