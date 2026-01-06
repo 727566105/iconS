@@ -1,66 +1,53 @@
-FROM node:20-alpine AS base
+# 使用 Debian 官方镜像而不是 Alpine,解决 OpenSSL 兼容性问题
+FROM node:20-bookworm-slim AS base
 
-# Install dependencies only when needed
-FROM base AS deps
-# 安装 libretls 以提供 OpenSSL 兼容性
-RUN apk add --no-cache libc6-compat libretls
+# 安装必要的系统依赖
+RUN apt-get update && apt-get install -y \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
 WORKDIR /app
 
-# Install dependencies
+# 复制 package 文件
 COPY package*.json ./
+
+# 安装依赖
 RUN npm ci --cache /tmp/npm-cache
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
+# 复制 Prisma schema
 COPY prisma ./prisma/
-COPY package*.json ./
 
-# Generate Prisma Client before copying source code
+# 生成 Prisma Client
 RUN npx prisma generate
 
-# Copy the rest of the application
+# 复制应用代码
 COPY . .
 
+# 设置环境变量
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# 构建应用
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
+# 创建非 root 用户
+RUN groupadd -r nodejs && useradd -r -g nodejs nextjs
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# 复制公共文件
+COPY --from=chown=nextjs:nodejs /app/public ./public
 
-# 安装运行时依赖
-RUN apk add --no-cache libc6-compat libretls
+# 复制构建输出
+COPY --from=chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=chown=nextjs:nodejs /app/.next/static ./.next/static
 
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
+# 复制 Prisma 文件
+COPY --from=chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=chown=nextjs:nodejs /app/prisma ./prisma
 
-# Copy public files if directory exists, otherwise create empty directory
-RUN mkdir -p ./public
-
-COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy Prisma files and schema for runtime
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-
-# Create data directories with correct permissions
+# 创建数据目录
 RUN mkdir -p /app/data/icons /app/data/temp && \
     chown -R nextjs:nodejs /app/data
 
