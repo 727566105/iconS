@@ -24,6 +24,7 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false)
   const [result, setResult] = useState<UploadResult | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -55,6 +56,57 @@ export default function UploadPage() {
       setPreview(reader.result as string)
     }
     reader.readAsText(selectedFile)
+
+    setResult(null)
+  }, [name])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const droppedFiles = e.dataTransfer.files
+    if (!droppedFiles || droppedFiles.length === 0) return
+
+    const droppedFile = droppedFiles[0]
+
+    // 使用与 handleFileSelect 相同的验证逻辑
+    if (!droppedFile.type.includes('svg') && !droppedFile.name.endsWith('.svg')) {
+      setResult({ success: false, error: '请选择SVG文件' })
+      return
+    }
+
+    if (droppedFile.size > 5 * 1024 * 1024) {
+      setResult({ success: false, error: '文件大小不能超过5MB' })
+      return
+    }
+
+    setFile(droppedFile)
+
+    // Auto-fill name from filename
+    if (!name) {
+      const fileName = droppedFile.name.replace('.svg', '').replace(/[-_]/g, ' ')
+      setName(fileName.charAt(0).toUpperCase() + fileName.slice(1))
+    }
+
+    // Generate preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setPreview(reader.result as string)
+    }
+    reader.readAsText(droppedFile)
 
     setResult(null)
   }, [name])
@@ -157,7 +209,16 @@ export default function UploadPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 SVG文件 <span className="text-red-500">*</span>
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-indigo-500 transition-colors">
+              <div
+                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors ${
+                  isDragging
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-300 hover:border-indigo-500'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <div className="space-y-1 text-center">
                   <svg
                     className="mx-auto h-12 w-12 text-gray-400"
