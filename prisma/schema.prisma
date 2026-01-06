@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Icon {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String    @db.VarChar(255)
+  fileName      String    @map("file_name") @db.VarChar(255)
+  description   String?   @db.Text
+  categoryId    String?   @map("category_id") @db.Uuid
+  contentHash   String    @unique @map("content_hash") @db.VarChar(64)
+  shardId       Int       @default(0) @map("shard_id")
+  status        String    @default("DRAFT") @map("status") @db.VarChar(20)
+  aiTags        Json?     @map("ai_tags")
+  aiCategory    String?   @map("ai_category") @db.VarChar(100)
+  searchVector  Unsupported("tsvector")?
+  viewCount     Int       @default(0) @map("view_count")
+  downloadCount Int       @default(0) @map("download_count")
+  originalIconId String?  @map("original_icon_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags       IconTag[]
+  originalOf Icon[]    @relation("DuplicateIcons")
+  duplicate  Icon?      @relation("DuplicateIcons", fields: [originalIconId], references: [id])
+
+  @@index([shardId])
+  @@index([status])
+  @@index([viewCount(sort: Desc)])
+  @@index([downloadCount(sort: Desc)])
+  @@index([createdAt])
+  @@map("icons")
+}
+
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique @db.VarChar(100)
+  slug        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  parentId    String?   @map("parent_id") @db.Uuid
+  sortOrder   Int       @default(0) @map("sort_order")
+  iconCount   Int       @default(0) @map("icon_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+  icons    Icon[]
+
+  @@index([slug])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model Tag {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @unique @db.VarChar(50)
+  usageCount Int      @default(0) @map("usage_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  icons IconTag[]
+
+  @@index([name])
+  @@index([usageCount(sort: Desc)])
+  @@map("tags")
+}
+
+model IconTag {
+  iconId     String   @map("icon_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  icon Icon @relation(fields: [iconId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([iconId, tagId])
+  @@map("icon_tags")
+}
+
+model AdminUser {
+  id         String    @id @default(uuid()) @db.Uuid
+  username   String    @unique @db.VarChar(100)
+  passwordHash String  @map("password_hash") @db.VarChar(255)
+  lastLogin  DateTime? @map("last_login")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([username])
+  @@map("admin_users")
+}
+
+model SearchHistory {
+  id           String    @id @default(uuid()) @db.Uuid
+  query        String    @db.VarChar(255)
+  queryHash    String    @unique @map("query_hash") @db.VarChar(64)
+  count        Int       @default(0)
+  lastSearched DateTime  @default(now()) @map("last_searched")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([queryHash])
+  @@index([count(sort: Desc)])
+  @@map("search_history")
+}
