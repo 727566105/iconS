@@ -88,4 +88,4 @@ jobs:
           echo "${{ steps.meta.outputs.tags }}"
           echo ""
           echo "镜像标签列表:"
-          echo "${{ steps.meta.outputs.json }}" | jq -r '.tags | .[]'
+          echo "${{ steps.meta.outputs.json }}" | jq -r '.tags[]' 2>/dev/null || echo "${{ steps.meta.outputs.tags }}"
