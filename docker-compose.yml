@@ -1,3 +1,7 @@
+# Docker Compose 完整部署配置(包含本地 PostgreSQL 和 Redis)
+# 适用场景: 在 NAS 或服务器上完整部署所有服务
+# 如需使用远程数据库和 Redis,请使用 docker-compose.prod.yml
+
 version: '3.8'
 
 services:

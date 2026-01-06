@@ -1,0 +1,35 @@
+# Docker Compose 配置 - 开发环境
+# 此配置用于本地开发,仅运行应用容器,使用远程数据库和 Redis
+# 使用方法: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: icon-library-dev
+    ports:
+      - "3000:3000"
+    environment:
+      # 从 .env 文件读取敏感信息
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - NODE_ENV=development
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - STORAGE_BASE_PATH=/app/data
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      # 开发模式下挂载源代码实现热重载
+      - ./app:/app/app:ro
+      - ./lib:/app/lib:ro
+      - ./components:/app/components:ro
+      - ./public:/app/public:ro
+      # 数据目录
+      - ./data/icons:/app/data/icons:rw
+      - ./data/temp:/app/data/temp:rw
+      - ./logs:/app/logs:rw
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped

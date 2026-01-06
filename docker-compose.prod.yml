@@ -1,0 +1,41 @@
+# Docker Compose 配置 - 生产环境
+# 此配置仅运行应用容器,使用远程 PostgreSQL 和 Redis
+# 使用方法: docker-compose -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: icon-library-app
+    ports:
+      - "3000:3000"
+    environment:
+      # 从 .env 文件或环境变量读取敏感信息
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - NODE_ENV=production
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - STORAGE_BASE_PATH=/app/data
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RATE_LIMIT_WRITE_REQUESTS=${RATE_LIMIT_WRITE_REQUESTS:-20}
+      - RATE_LIMIT_WRITE_WINDOW=${RATE_LIMIT_WRITE_WINDOW:-60}
+      # AI 配置(可选)
+      - QWEN_API_KEY=${QWEN_API_KEY:-}
+      - QWEN_API_SECRET=${QWEN_API_SECRET:-}
+      - QWEN_ENDPOINT=${QWEN_ENDPOINT:-https://dashscope.aliyuncs.com}
+    volumes:
+      # 挂载本地数据目录用于存储 SVG 文件
+      - ./data/icons:/app/data/icons:rw
+      - ./data/temp:/app/data/temp:rw
+      - ./logs:/app/logs:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
