@@ -462,22 +462,24 @@ export default function UploadPage() {
                     />
                   </svg>
                   <div className="flex text-sm text-gray-600">
-                    <label
-                      htmlFor="batch-file-upload"
-                      className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none"
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('batch-file-upload')?.click()}
+                      className="relative cursor-pointer bg-transparent font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
+                      disabled={batchUploading}
                     >
                       <span>选择多个文件</span>
-                      <input
-                        id="batch-file-upload"
-                        name="batch-file-upload"
-                        type="file"
-                        accept=".svg,image/svg+xml"
-                        multiple
-                        onChange={(e) => handleBatchFileSelect(e.target.files)}
-                        className="sr-only"
-                        disabled={batchUploading}
-                      />
-                    </label>
+                    </button>
+                    <input
+                      id="batch-file-upload"
+                      name="batch-file-upload"
+                      type="file"
+                      accept=".svg,image/svg+xml"
+                      multiple
+                      onChange={(e) => handleBatchFileSelect(e.target.files)}
+                      className="sr-only"
+                      disabled={batchUploading}
+                    />
                     <p className="pl-1">或拖拽多个文件到此处</p>
                   </div>
                   <p className="text-xs text-gray-500">SVG文件,最大5MB,最多50个</p>
