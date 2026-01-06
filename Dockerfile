@@ -54,23 +54,34 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 复制 Prisma 文件（需要包含 prisma migrate 工具）
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+# 复制所有 node_modules（包含完整的 Prisma 工具）
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# 复制 Prisma schema 和迁移文件
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # 创建数据目录
 RUN mkdir -p /app/data/icons /app/data/temp && \
     chown -R nextjs:nodejs /app/data
 
-# 创建启动脚本，包含数据库迁移
+# 创建启动脚本
 RUN echo '#!/bin/sh\n\
 set -e\n\
-echo "启动应用..."\n\
-echo "运行数据库迁移..."\n\
-npx prisma migrate deploy || echo "警告: 数据库迁移失败或已存在"\n\
+echo "========================================="\n\
+echo "启动 IconS 应用"\n\
+echo "========================================="\n\
+echo "检查数据库连接..."\n\
+if [ -n "$DATABASE_URL" ]; then\n\
+  echo "运行数据库迁移..."\n\
+  npx prisma migrate deploy --skip-generate || {\n\
+    echo "警告: 数据库迁移失败，尝试继续启动..."\n\
+    echo "如果遇到数据库错误，请检查 DATABASE_URL 配置"\n\
+  }\n\
+else\n\
+  echo "警告: DATABASE_URL 未设置，跳过数据库迁移"\n\
+fi\n\
 echo "启动服务器..."\n\
+echo "========================================="\n\
 exec node server.js\n' > /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh && \
     chown nextjs:nodejs /app/entrypoint.sh
