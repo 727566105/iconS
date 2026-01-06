@@ -36,16 +36,16 @@ RUN npm run build
 RUN groupadd -r nodejs && useradd -r -g nodejs nextjs
 
 # 复制公共文件
-COPY --from=chown=nextjs:nodejs /app/public ./public
+COPY --from=base --chown=nextjs:nodejs /app/public ./public
 
 # 复制构建输出
-COPY --from=chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=base --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=base --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # 复制 Prisma 文件
-COPY --from=chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=base --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=base --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=base --chown=nextjs:nodejs /app/prisma ./prisma
 
 # 创建数据目录
 RUN mkdir -p /app/data/icons /app/data/temp && \
