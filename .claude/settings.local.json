@@ -47,7 +47,8 @@
       "Bash(docker-compose ps:*)",
       "Bash(npm run prisma:migrate:*)",
       "Bash(npm run prisma:generate:*)",
-      "Bash(npx prisma migrate:*)"
+      "Bash(npx prisma migrate:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

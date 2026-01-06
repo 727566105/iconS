@@ -51,6 +51,7 @@ export class AuthService {
 
   /**
    * Create session after successful login
+   * Returns sessionId for the caller to set as cookie
    */
   async createSession(userId: string, username: string): Promise<string> {
     const sessionId = this.generateSessionId()
@@ -73,16 +74,7 @@ export class AuthService {
       console.warn('Redis not available, session not persisted')
     }
 
-    // Set HTTP-only cookie
-    const cookieStore = await cookies()
-    cookieStore.set('sessionId', sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: SESSION_DURATION,
-      path: '/',
-    })
-
+    // Return sessionId - caller must set cookie
     return sessionId
   }
 
@@ -114,16 +106,29 @@ export class AuthService {
 
   /**
    * Destroy session (logout)
+   * Caller must provide sessionId and manually delete cookie
    */
-  async destroySession(): Promise<void> {
-    const cookieStore = await cookies()
-    const sessionId = cookieStore.get('sessionId')?.value
-
-    if (sessionId && redis) {
+  async destroySession(sessionId: string): Promise<void> {
+    if (redis && sessionId) {
       await redis.del(`session:${sessionId}`)
     }
+  }
 
-    cookieStore.delete('sessionId')
+  /**
+   * Get cookie options for session cookie
+   * Used by Route Handlers to set cookies correctly
+   */
+  getSessionCookieOptions(): { name: string; options: any } {
+    return {
+      name: 'sessionId',
+      options: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        maxAge: SESSION_DURATION,
+        path: '/',
+      },
+    }
   }
 
   /**

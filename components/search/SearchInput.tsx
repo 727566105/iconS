@@ -19,7 +19,7 @@ export function SearchInput({
   const [query, setQuery] = useState(defaultValue)
   const [isTyping, setIsTyping] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const typingTimerRef = useRef<NodeJS.Timeout>()
+  const typingTimerRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {

@@ -5,6 +5,7 @@ import { existsSync } from 'fs'
 import { prisma } from '@/lib/db'
 import { storageService } from '@/lib/storage'
 import { queueIconForAIAnalysis } from '@/lib/ai-queue'
+import { isAIConfigured } from '@/lib/ai'
 import { rateLimitWrite } from '@/lib/rate-limiter'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -94,6 +95,13 @@ export async function POST(request: NextRequest) {
       baseStoragePath = process.cwd() + '/data'
     }
 
+    if (!baseStoragePath) {
+      return NextResponse.json(
+        { error: 'Storage base path not configured' },
+        { status: 500 }
+      )
+    }
+
     // Build full path
     const fullPath = join(baseStoragePath, 'icons', `shard-${shardId}`, fileName)
 
@@ -122,9 +130,12 @@ export async function POST(request: NextRequest) {
     })
 
     // Queue for AI analysis (async, don't wait)
-    queueIconForAIAnalysis(icon.id, svgContent).catch((error) => {
-      console.error(`Failed to queue icon ${icon.id} for AI analysis:`, error)
-    })
+    const aiConfigured = await isAIConfigured()
+    if (aiConfigured) {
+      queueIconForAIAnalysis(icon.id, svgContent).catch((error) => {
+        console.error(`Failed to queue icon ${icon.id} for AI analysis:`, error)
+      })
+    }
 
     return NextResponse.json({
       success: true,
@@ -134,7 +145,9 @@ export async function POST(request: NextRequest) {
         fileName: icon.fileName,
         status: icon.status,
       },
-      message: 'Icon uploaded successfully. AI analysis in progress.',
+      message: aiConfigured
+        ? 'Icon uploaded successfully. AI analysis in progress.'
+        : 'Icon uploaded successfully. Please configure an AI provider for automatic analysis.',
     })
   } catch (error) {
     console.error('Upload error:', error)
@@ -143,11 +156,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-// Configure route to handle file uploads
-export const config = {
-  api: {
-    bodyParser: false,
-  },
 }

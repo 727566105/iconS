@@ -20,7 +20,7 @@ export const aiQueue = new Queue('ai-analysis', {
       delay: 2000,
     },
   },
-})
+} as any)
 
 /**
  * Process AI analysis job

@@ -25,6 +25,14 @@ export async function GET(
     if (process.env.NODE_ENV === 'development' && !baseStoragePath) {
       baseStoragePath = join(process.cwd(), 'data')
     }
+
+    if (!baseStoragePath) {
+      return NextResponse.json(
+        { error: 'Storage base path not configured' },
+        { status: 500 }
+      )
+    }
+
     const absoluteBasePath = resolve(baseStoragePath)
 
     // Build full file path

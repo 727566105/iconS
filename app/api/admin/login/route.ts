@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authService } from '@/lib/auth'
 import { ensureServicesInitialized } from '@/lib/init'
+import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,8 +42,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create session
-    await authService.createSession(admin.id, admin.username)
+    // Create session and get sessionId
+    const sessionId = await authService.createSession(admin.id, admin.username)
+
+    // Set cookie in Route Handler (critical fix)
+    const cookieStore = await cookies()
+    const cookieOptions = authService.getSessionCookieOptions()
+    cookieStore.set(cookieOptions.name, sessionId, cookieOptions.options)
 
     // Update last login
     await prisma.adminUser.update({

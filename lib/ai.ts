@@ -1,11 +1,21 @@
 /**
- * AliCloud Qwen API Service
- * For AI-powered icon tagging and categorization
+ * Multi-Provider AI Service
+ * Supports OpenAI, OpenAI-Response, and Qwen for icon tagging and categorization
  */
 
-export interface QwenResponse {
+import { getActiveProvider } from './ai-config'
+
+export interface AIAnalysisResult {
   tags: string[]
   category: string
+}
+
+interface OpenAIResponse {
+  choices: Array<{
+    message: {
+      content: string
+    }
+  }>
 }
 
 interface QwenAPIResponse {
@@ -55,16 +65,13 @@ function extractSVGText(svgContent: string): string {
 }
 
 /**
- * Call Qwen API to analyze SVG icon
+ * Call OpenAI API to analyze SVG icon
  */
-async function callQwenAPI(svgText: string): Promise<QwenResponse> {
-  const apiKey = process.env.QWEN_API_KEY
-  const endpoint = process.env.QWEN_ENDPOINT || 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation'
-
-  if (!apiKey) {
-    throw new Error('QWEN_API_KEY not configured')
-  }
-
+async function callOpenAIAPI(
+  provider: any,
+  svgText: string
+): Promise<AIAnalysisResult> {
+  const endpoint = provider.apiEndpoint || 'https://api.openai.com/v1'
   const prompt = `Analyze this SVG icon and provide appropriate tags and category.
 
 Icon description: ${svgText}
@@ -77,72 +84,159 @@ Please respond in the following JSON format only (no markdown):
 
 Choose the most appropriate category from the list. Provide 3-5 relevant tags in English.`
 
-  try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+  const response = await fetch(`${endpoint}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${provider.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: provider.modelId,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an icon tagging assistant. Respond only with valid JSON.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: provider.config?.temperature || 0.3,
+      max_tokens: provider.config?.maxTokens || 150,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
+  }
+
+  const data: OpenAIResponse = await response.json()
+  const content = data.choices[0]?.message?.content || '{}'
+
+  // Parse JSON response (handle markdown code blocks)
+  let jsonStr = content.trim()
+  if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.replace(/```json\n?/, '').replace(/```\n?$/, '')
+  }
+
+  const parsed = JSON.parse(jsonStr)
+
+  return {
+    tags: Array.isArray(parsed.tags) ? parsed.tags : ['icon'],
+    category: parsed.category || 'Other',
+  }
+}
+
+/**
+ * Call Qwen API to analyze SVG icon
+ */
+async function callQwenAPI(
+  provider: any,
+  svgText: string
+): Promise<AIAnalysisResult> {
+  const endpoint =
+    provider.apiEndpoint ||
+    'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation'
+  const prompt = `Analyze this SVG icon and provide appropriate tags and category.
+
+Icon description: ${svgText}
+
+Please respond in the following JSON format only (no markdown):
+{
+  "tags": ["tag1", "tag2", "tag3"],
+  "category": "UI Icons" | "Business" | "Social" | "Media" | "Navigation" | "Other"
+}
+
+Choose the most appropriate category from the list. Provide 3-5 relevant tags in English.`
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${provider.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: provider.modelId,
+      input: {
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an icon tagging assistant. Respond only with valid JSON.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
       },
-      body: JSON.stringify({
-        model: 'qwen-turbo',
-        input: {
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an icon tagging assistant. Respond only with valid JSON.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-        },
-        parameters: {
-          result_format: 'message',
-          temperature: 0.3,
-          max_tokens: 150,
-        },
-      }),
-    })
+      parameters: {
+        result_format: 'message',
+        temperature: provider.config?.temperature || 0.3,
+        max_tokens: provider.config?.maxTokens || 150,
+      },
+    }),
+  })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Qwen API error: ${response.status} - ${errorText}`)
-    }
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Qwen API error: ${response.status} - ${errorText}`)
+  }
 
-    const data: QwenAPIResponse = await response.json()
-    const content = data.output?.text || '{}'
+  const data: QwenAPIResponse = await response.json()
+  const content = data.output?.text || '{}'
 
-    // Parse JSON response (handle markdown code blocks)
-    let jsonStr = content.trim()
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/```json\n?/, '').replace(/```\n?$/, '')
-    }
+  // Parse JSON response (handle markdown code blocks)
+  let jsonStr = content.trim()
+  if (jsonStr.startsWith('```')) {
+    jsonStr = jsonStr.replace(/```json\n?/, '').replace(/```\n?$/, '')
+  }
 
-    const parsed = JSON.parse(jsonStr)
+  const parsed = JSON.parse(jsonStr)
 
-    return {
-      tags: Array.isArray(parsed.tags) ? parsed.tags : ['icon'],
-      category: parsed.category || 'Other',
-    }
-  } catch (error) {
-    console.error('Qwen API call failed:', error)
-    throw error
+  return {
+    tags: Array.isArray(parsed.tags) ? parsed.tags : ['icon'],
+    category: parsed.category || 'Other',
+  }
+}
+
+/**
+ * Call appropriate AI provider API
+ */
+async function callAIAPI(svgText: string): Promise<AIAnalysisResult> {
+  const provider = await getActiveProvider()
+
+  if (!provider) {
+    throw new Error('No active AI provider configured')
+  }
+
+  console.log(`Using AI provider: ${provider.provider} (${provider.modelName})`)
+
+  switch (provider.provider) {
+    case 'openai':
+    case 'openai-response':
+      return await callOpenAIAPI(provider, svgText)
+    case 'qwen':
+      return await callQwenAPI(provider, svgText)
+    default:
+      throw new Error(`Unknown AI provider type: ${provider.provider}`)
   }
 }
 
 /**
  * Analyze SVG icon and return AI-generated tags and category
- * Falls back to simple defaults if AI fails
+ * Falls back to simple defaults if AI fails or no provider configured
  */
-export async function analyzeIcon(svgContent: string): Promise<QwenResponse> {
+export async function analyzeIcon(
+  svgContent: string
+): Promise<AIAnalysisResult> {
   const svgText = extractSVGText(svgContent)
 
   console.log('Analyzing icon with AI:', svgText.substring(0, 100))
 
   try {
-    const result = await callQwenAPI(svgText)
+    const result = await callAIAPI(svgText)
     console.log('AI analysis result:', result)
     return result
   } catch (error) {
@@ -175,6 +269,14 @@ export async function analyzeIcon(svgContent: string): Promise<QwenResponse> {
       category: 'Other',
     }
   }
+}
+
+/**
+ * Check if AI provider is configured
+ */
+export async function isAIConfigured(): Promise<boolean> {
+  const provider = await getActiveProvider()
+  return provider !== null
 }
 
 export { analyzeIcon as default }

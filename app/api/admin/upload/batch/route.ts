@@ -5,6 +5,7 @@ import { existsSync } from 'fs'
 import { prisma } from '@/lib/db'
 import { storageService } from '@/lib/storage'
 import { queueIconForAIAnalysis } from '@/lib/ai-queue'
+import { isAIConfigured } from '@/lib/ai'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const MAX_BATCH_SIZE = 50 // 最多50个文件
@@ -34,7 +35,8 @@ interface BatchUploadResponse {
 
 async function processFile(
   file: File,
-  index: number
+  index: number,
+  aiConfigured: boolean
 ): Promise<UploadResult> {
   try {
     // Check file size
@@ -95,6 +97,14 @@ async function processFile(
       baseStoragePath = process.cwd() + '/data'
     }
 
+    if (!baseStoragePath) {
+      return {
+        fileName: file.name,
+        success: false,
+        error: 'Storage base path not configured',
+      }
+    }
+
     // Build full path
     const fullPath = join(baseStoragePath, 'icons', `shard-${shardId}`, fileName)
 
@@ -122,10 +132,12 @@ async function processFile(
       },
     })
 
-    // Queue for AI analysis (async, don't wait)
-    queueIconForAIAnalysis(icon.id, svgContent).catch((error) => {
-      console.error(`Failed to queue icon ${icon.id} for AI analysis:`, error)
-    })
+    // Queue for AI analysis only if AI is configured (async, don't wait)
+    if (aiConfigured) {
+      queueIconForAIAnalysis(icon.id, svgContent).catch((error) => {
+        console.error(`Failed to queue icon ${icon.id} for AI analysis:`, error)
+      })
+    }
 
     return {
       fileName: file.name,
@@ -197,10 +209,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if AI is configured
+    const aiConfigured = await isAIConfigured()
+
     // Process files with concurrency control
     const results = await processBatchWithConcurrency(
       files,
-      processFile,
+      (file, index) => processFile(file, index, aiConfigured),
       CONCURRENT_UPLOADS
     )
 
@@ -225,11 +240,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-// Configure route to handle file uploads
-export const config = {
-  api: {
-    bodyParser: false,
-  },
 }
