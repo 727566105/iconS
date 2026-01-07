@@ -55,7 +55,8 @@
       "Bash(/tmp/final_test.sh:*)",
       "Bash(/tmp/test_deepseek.sh:*)",
       "Bash(redis-cli:*)",
-      "Bash(npx prisma db execute:*)"
+      "Bash(npx prisma db execute:*)",
+      "Bash(npm --version:*)"
     ]
   }
 }

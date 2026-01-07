@@ -8,19 +8,42 @@ export interface AIAnalysisJobData {
   svgContent: string
 }
 
+let aiQueueInstance: Queue | null = null
+
 /**
- * BullMQ queue for AI analysis tasks
+ * Get or create AI analysis queue
  */
-export const aiQueue = new Queue('ai-analysis', {
-  connection: redis || undefined,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-  },
-} as any)
+export function getAIQueue(): Queue | null {
+  if (!redis) {
+    return null
+  }
+
+  if (!aiQueueInstance) {
+    aiQueueInstance = new Queue('ai-analysis', {
+      connection: redis,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+      },
+    })
+  }
+
+  return aiQueueInstance
+}
+
+// 向后兼容的导出
+export const aiQueue = {
+  add: async (...args: any[]) => {
+    const queue = getAIQueue()
+    if (!queue) {
+      throw new Error('Redis not available, queue not initialized')
+    }
+    return (queue as any).add(...args)
+  }
+}
 
 /**
  * Process AI analysis job
@@ -156,12 +179,13 @@ export function startAIWorker() {
  * Add icon to AI queue
  */
 export async function queueIconForAIAnalysis(iconId: string, svgContent: string) {
-  if (!redis) {
+  const queue = getAIQueue()
+  if (!queue) {
     console.warn('⚠️  Redis not available, skipping AI queue')
     return null
   }
 
-  const job = await aiQueue.add('analyze-icon', {
+  const job = await queue.add('analyze-icon', {
     iconId,
     svgContent,
   })

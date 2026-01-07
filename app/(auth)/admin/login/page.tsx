@@ -120,9 +120,9 @@ export default function LoginPage() {
         {/* 测试提示 */}
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-800">
-            <strong>测试账户:</strong><br />
+            <strong>默认管理员账户:</strong><br />
             用户名: admin<br />
-            密码: test123456
+            密码: admin123456
           </p>
         </div>
       </div>
