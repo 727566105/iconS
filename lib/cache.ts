@@ -9,32 +9,45 @@ export async function initRedis(): Promise<void> {
   try {
     const redisUrl = process.env.REDIS_URL
     if (!redisUrl) {
-      console.warn('REDIS_URL not configured, running without cache')
+      console.warn('⚠️  REDIS_URL not configured, running without cache')
       return
     }
+
+    console.log('🔗 Connecting to Redis...')
 
     redis = new Redis(redisUrl, {
       maxRetriesPerRequest: null, // Required by BullMQ
       retryStrategy: (times) => {
         if (times > 3) {
-          console.error('Redis connection failed, running without cache')
+          console.error('❌ Redis connection failed after retries, running without cache')
           redis = null
           return null
         }
         return Math.min(times * 100, 2000)
       },
+      connectTimeout: 10000, // 10 seconds timeout
     })
 
     redis.on('error', (err) => {
-      console.error('Redis error:', err.message)
-      redis = null
+      console.error('❌ Redis error:', err.message)
+      // Don't set redis = null here - let the connection timeout handle it
     })
 
-    // Test connection
-    await redis.ping()
-    console.log('Redis connected successfully')
+    // Test connection with timeout
+    const pingResult = await Promise.race([
+      redis.ping(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Redis connection timeout')), 10000)
+      ),
+    ])
+
+    if (pingResult === 'PONG') {
+      console.log('✅ Redis connected successfully')
+    } else {
+      throw new Error('Redis ping failed')
+    }
   } catch (error) {
-    console.warn('Redis unavailable, running without cache:', error)
+    console.warn('⚠️  Redis unavailable, running without cache:', error instanceof Error ? error.message : error)
     redis = null
   }
 }
