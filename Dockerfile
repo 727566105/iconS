@@ -73,7 +73,7 @@ echo "========================================="\n\
 echo "检查数据库连接..."\n\
 if [ -n "$DATABASE_URL" ]; then\n\
   echo "运行数据库迁移..."\n\
-  npx prisma migrate deploy --skip-generate || {\n\
+  npx prisma migrate deploy || {\n\
     echo "警告: 数据库迁移失败，尝试继续启动..."\n\
     echo "如果遇到数据库错误，请检查 DATABASE_URL 配置"\n\
   }\n\
